@@ -57,9 +57,11 @@ class GDALInterface(object):
 
     def lookup(self, lat, lon):
         try:
-
+            print(f"DEBUG: GDAL lookup for lat={lat}, lon={lon}")
+            
             # get coordinate of the raster
             xgeo, ygeo, zgeo = self.coordinate_transform.TransformPoint(lon, lat, 0)
+            print(f"DEBUG: Transformed coordinates: xgeo={xgeo}, ygeo={ygeo}")
 
             # convert it to pixel/line on band
             u = xgeo - self.geo_transform_inv[0]
@@ -67,13 +69,19 @@ class GDALInterface(object):
             # FIXME this int() is probably bad idea, there should be half cell size thing needed
             xpix = int(self.geo_transform_inv[1] * u + self.geo_transform_inv[2] * v)
             ylin = int(self.geo_transform_inv[4] * u + self.geo_transform_inv[5] * v)
+            
+            print(f"DEBUG: Pixel coordinates: xpix={xpix}, ylin={ylin}")
+            print(f"DEBUG: Array shape: {self.points_array.shape}")
 
             # look the value up
             v = self.points_array[ylin, xpix]
+            print(f"DEBUG: Raw elevation value: {v}")
 
-            return v if v != -32768 else self.SEA_LEVEL
+            result = v if v != -32768 else self.SEA_LEVEL
+            print(f"DEBUG: Final elevation: {result}")
+            return result
         except Exception as e:
-            print(e)
+            print(f"DEBUG: Exception in lookup: {e}")
             return self.SEA_LEVEL
 
     def close(self):
@@ -119,7 +127,9 @@ class GDALTileInterface(object):
             return interface
 
     def _all_files(self):
-        return [f for f in listdir(self.tiles_folder) if isfile(join(self.tiles_folder, f)) and f.endswith(u'.tif')]
+        files = [f for f in listdir(self.tiles_folder) if isfile(join(self.tiles_folder, f)) and f.endswith(u'.tif')]
+        print(f"DEBUG: Found {len(files)} .tif files in {self.tiles_folder}: {files}")
+        return files
 
     def has_summary_json(self):
         return os.path.exists(self.summary_file)
@@ -161,15 +171,21 @@ class GDALTileInterface(object):
         self._build_index()
 
     def lookup(self, lat, lng):
+        print(f"DEBUG: Main interface lookup for lat={lat}, lng={lng}")
         nearest = list(self.index.nearest((lat, lng), 1, objects=True))
+        print(f"DEBUG: Found {len(nearest)} nearest tiles")
 
         if not nearest:
+            print("DEBUG: No nearest tiles found - invalid coordinates")
             raise Exception('Invalid latitude/longitude')
         else:
             coords = nearest[0].object
+            print(f"DEBUG: Using tile file: {coords['file']}")
 
             gdal_interface = self._open_gdal_interface(coords['file'])
-            return int(gdal_interface.lookup(lat, lng))
+            result = int(gdal_interface.lookup(lat, lng))
+            print(f"DEBUG: Main interface returning: {result}")
+            return result
 
     def _build_index(self):
         print('Building spatial index ...')

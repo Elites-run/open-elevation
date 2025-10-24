@@ -47,9 +47,12 @@ def get_elevation(lat, lng):
     :param lng:
     :return:
     """
+    print(f"DEBUG: Looking up elevation for coordinates: lat={lat}, lng={lng}")
     try:
         elevation = interface.lookup(lat, lng)
-    except:
+        print(f"DEBUG: Found elevation: {elevation}")
+    except Exception as e:
+        print(f"DEBUG: Error during lookup: {e}")
         return {
             'latitude': lat,
             'longitude': lng,

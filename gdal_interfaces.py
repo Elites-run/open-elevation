@@ -1,10 +1,14 @@
 import os
+import logging
 from osgeo import gdal, osr
 from lazy import lazy
 from os import listdir
 from os.path import isfile, join, getsize
 import json
 from rtree import index
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # Originally based on https://stackoverflow.com/questions/13439357/extract-point-from-raster-in-gdal
 class GDALInterface(object):
@@ -57,11 +61,11 @@ class GDALInterface(object):
 
     def lookup(self, lat, lon):
         try:
-            print(f"DEBUG: GDAL lookup for lat={lat}, lon={lon}")
+            logger.info(f"GDAL lookup for lat={lat}, lon={lon}")
             
             # get coordinate of the raster
             xgeo, ygeo, zgeo = self.coordinate_transform.TransformPoint(lon, lat, 0)
-            print(f"DEBUG: Transformed coordinates: xgeo={xgeo}, ygeo={ygeo}")
+            logger.info(f"Transformed coordinates: xgeo={xgeo}, ygeo={ygeo}")
 
             # convert it to pixel/line on band
             u = xgeo - self.geo_transform_inv[0]
@@ -70,18 +74,18 @@ class GDALInterface(object):
             xpix = int(self.geo_transform_inv[1] * u + self.geo_transform_inv[2] * v)
             ylin = int(self.geo_transform_inv[4] * u + self.geo_transform_inv[5] * v)
             
-            print(f"DEBUG: Pixel coordinates: xpix={xpix}, ylin={ylin}")
-            print(f"DEBUG: Array shape: {self.points_array.shape}")
+            logger.info(f"Pixel coordinates: xpix={xpix}, ylin={ylin}")
+            logger.info(f"Array shape: {self.points_array.shape}")
 
             # look the value up
             v = self.points_array[ylin, xpix]
-            print(f"DEBUG: Raw elevation value: {v}")
+            logger.info(f"Raw elevation value: {v}")
 
             result = v if v != -32768 else self.SEA_LEVEL
-            print(f"DEBUG: Final elevation: {result}")
+            logger.info(f"Final elevation: {result}")
             return result
         except Exception as e:
-            print(f"DEBUG: Exception in lookup: {e}")
+            logger.error(f"Exception in lookup: {e}")
             return self.SEA_LEVEL
 
     def close(self):
@@ -128,7 +132,7 @@ class GDALTileInterface(object):
 
     def _all_files(self):
         files = [f for f in listdir(self.tiles_folder) if isfile(join(self.tiles_folder, f)) and f.endswith(u'.tif')]
-        print(f"DEBUG: Found {len(files)} .tif files in {self.tiles_folder}: {files}")
+        logger.info(f"Found {len(files)} .tif files in {self.tiles_folder}: {files}")
         return files
 
     def has_summary_json(self):
@@ -171,20 +175,20 @@ class GDALTileInterface(object):
         self._build_index()
 
     def lookup(self, lat, lng):
-        print(f"DEBUG: Main interface lookup for lat={lat}, lng={lng}")
+        logger.info(f"Main interface lookup for lat={lat}, lng={lng}")
         nearest = list(self.index.nearest((lat, lng), 1, objects=True))
-        print(f"DEBUG: Found {len(nearest)} nearest tiles")
+        logger.info(f"Found {len(nearest)} nearest tiles")
 
         if not nearest:
-            print("DEBUG: No nearest tiles found - invalid coordinates")
+            logger.error("No nearest tiles found - invalid coordinates")
             raise Exception('Invalid latitude/longitude')
         else:
             coords = nearest[0].object
-            print(f"DEBUG: Using tile file: {coords['file']}")
+            logger.info(f"Using tile file: {coords['file']}")
 
             gdal_interface = self._open_gdal_interface(coords['file'])
             result = int(gdal_interface.lookup(lat, lng))
-            print(f"DEBUG: Main interface returning: {result}")
+            logger.info(f"Main interface returning: {result}")
             return result
 
     def _build_index(self):

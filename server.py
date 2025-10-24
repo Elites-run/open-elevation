@@ -1,9 +1,18 @@
 import configparser
 import json
 import os
+import logging
+from datetime import datetime
 
 from bottle import route, run, request, response, hook
 from gdal_interfaces import GDALTileInterface
+
+# Setup logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 class InternalException(ValueError):
@@ -47,12 +56,12 @@ def get_elevation(lat, lng):
     :param lng:
     :return:
     """
-    print(f"DEBUG: Looking up elevation for coordinates: lat={lat}, lng={lng}")
+    logger.info(f"Looking up elevation for coordinates: lat={lat}, lng={lng}")
     try:
         elevation = interface.lookup(lat, lng)
-        print(f"DEBUG: Found elevation: {elevation}")
+        logger.info(f"Found elevation: {elevation}")
     except Exception as e:
-        print(f"DEBUG: Error during lookup: {e}")
+        logger.error(f"Error during lookup: {e}")
         return {
             'latitude': lat,
             'longitude': lng,

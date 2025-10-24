@@ -56,12 +56,10 @@ def get_elevation(lat, lng):
     :param lng:
     :return:
     """
-    logger.info(f"Looking up elevation for coordinates: lat={lat}, lng={lng}")
     try:
         elevation = interface.lookup(lat, lng)
-        logger.info(f"Found elevation: {elevation}")
     except Exception as e:
-        logger.error(f"Error during lookup: {e}")
+        logger.error(f"Error during gdal-lookup: {e}")
         return {
             'latitude': lat,
             'longitude': lng,

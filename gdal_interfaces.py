@@ -61,11 +61,9 @@ class GDALInterface(object):
 
     def lookup(self, lat, lon):
         try:
-            logger.info(f"GDAL lookup for lat={lat}, lon={lon}")
             
             # get coordinate of the raster
             xgeo, ygeo, zgeo = self.coordinate_transform.TransformPoint(lon, lat, 0)
-            logger.info(f"Transformed coordinates: xgeo={xgeo}, ygeo={ygeo}")
 
             # convert it to pixel/line on band
             u = xgeo - self.geo_transform_inv[0]
@@ -73,19 +71,14 @@ class GDALInterface(object):
             # FIXME this int() is probably bad idea, there should be half cell size thing needed
             xpix = int(self.geo_transform_inv[1] * u + self.geo_transform_inv[2] * v)
             ylin = int(self.geo_transform_inv[4] * u + self.geo_transform_inv[5] * v)
-            
-            logger.info(f"Pixel coordinates: xpix={xpix}, ylin={ylin}")
-            logger.info(f"Array shape: {self.points_array.shape}")
 
             # look the value up
             v = self.points_array[ylin, xpix]
-            logger.info(f"Raw elevation value: {v}")
 
             result = v if v != -32768 else self.SEA_LEVEL
-            logger.info(f"Final elevation: {result}")
             return result
         except Exception as e:
-            logger.error(f"Exception in lookup: {e}")
+            logger.info(f"Exception in gdal-lookup: {e}")
             return self.SEA_LEVEL
 
     def close(self):
@@ -132,7 +125,6 @@ class GDALTileInterface(object):
 
     def _all_files(self):
         files = [f for f in listdir(self.tiles_folder) if isfile(join(self.tiles_folder, f)) and f.endswith(u'.tif')]
-        logger.info(f"Found {len(files)} .tif files in {self.tiles_folder}: {files}")
         return files
 
     def has_summary_json(self):
@@ -175,20 +167,16 @@ class GDALTileInterface(object):
         self._build_index()
 
     def lookup(self, lat, lng):
-        logger.info(f"Main interface lookup for lat={lat}, lng={lng}")
         nearest = list(self.index.nearest((lat, lng), 1, objects=True))
-        logger.info(f"Found {len(nearest)} nearest tiles")
 
         if not nearest:
             logger.error("No nearest tiles found - invalid coordinates")
             raise Exception('Invalid latitude/longitude')
         else:
             coords = nearest[0].object
-            logger.info(f"Using tile file: {coords['file']}")
 
             gdal_interface = self._open_gdal_interface(coords['file'])
             result = int(gdal_interface.lookup(lat, lng))
-            logger.info(f"Main interface returning: {result}")
             return result
 
     def _build_index(self):
